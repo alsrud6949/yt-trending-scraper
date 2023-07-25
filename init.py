@@ -1,20 +1,35 @@
 from os import getenv
 from dotenv import load_dotenv
-from googleapiclient.discovery import build
-from google.oauth2 import service_account
+from google.cloud import storage
+import gcsfs
+import pickle
 
 load_dotenv()
 
 # This variable specifies the name of a file that contains the OAuth 2.0
 # information for this application, including its client_id and client_secret.
-CLIENT_SECRETS_FILE = getenv("CLIENT_SECRETS_FILE")
+PROJECT_ID = getenv("PROJECT_ID")
+CREDENTIAL_FILE = getenv("CREDENTIAL_FILE")
+OUTPUT_BUCKET = getenv("OUTPUT_BUCKET")
 
-credentials = service_account.Credentials.from_service_account_file(
-    CLIENT_SECRETS_FILE
-)
+def get_credentials():
+    fs = gcsfs.GCSFileSystem(project=PROJECT_ID)
+    with fs.open(CREDENTIAL_FILE, "rb") as handle:
+        cred = pickle.load(handle)
+    return cred
 
-SCOPES = ['https://www.googleapis.com/auth/youtube']
+credentials = get_credentials()
 
-scoped_credentials = credentials.with_scopes(SCOPES)
-youtube = build('youtube', 'v3', credentials=scoped_credentials)
+gcs_client = storage.Client(PROJECT_ID)
+gcp_bucket_output = gcs_client.get_bucket(OUTPUT_BUCKET)
 
+snippet_features = ["title","publishedAt","channelId","channelTitle","categoryId","description"]
+
+unsafe_characters = ['\n', '\r', '"']
+
+category_dict = {0: 'All', 1: 'Film & Animation', 2: 'Autos & Vehicles',
+                 10: 'Music', 15: 'Pets & Animals', 17: 'Sports',
+                 19: 'Travel & Events', 20: 'Gaming', 22: 'People & Blogs',
+                 23: 'Comedy', 24: 'Entertainment', 25: 'News & Politics',
+                 26: 'Howto & Style', 27: 'Education', 28: 'Science & Technology',
+                 42: 'Shorts'}
